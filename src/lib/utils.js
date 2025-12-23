@@ -26,7 +26,7 @@ export function getInitials(name) {
 
 export function formatTimeAgo(timestamp) {
   if (!timestamp) return "";
-  
+
   const now = new Date();
   const time = new Date(timestamp);
   const diffInMs = now - time;
