@@ -122,29 +122,53 @@ router.post("/", async (req, res) => {
 // Complete profile endpoint
 router.post("/complete-profile", async (req, res) => {
   try {
-    const { firebaseUid, name, headline, bio, profilePicture } = req.body;
+    const { firebaseUid, name, headline, bio, profilePicture, email } =
+      req.body;
 
-    if (!name || !headline || !bio) {
+    console.log("Complete profile request:", {
+      firebaseUid,
+      name,
+      headline,
+      bio,
+    });
+
+    if (!firebaseUid) {
       return res.status(400).json({
-        message:
-          "Required fields: name, headline, and bio",
+        message: "Firebase UID is required",
       });
     }
 
-    const user = await User.findOne({ firebaseUid });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    if (!name || !headline || !bio) {
+      return res.status(400).json({
+        message: "Required fields: name, headline, and bio",
+      });
     }
 
-    user.name = name;
-    user.headline = headline;
-    user.bio = bio;
-    user.profilePicture = profilePicture || user.profilePicture || "";
+    let user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      // Create user if doesn't exist
+      user = new User({
+        firebaseUid,
+        email: email || "",
+        name,
+        headline,
+        bio,
+        profilePicture: profilePicture || "",
+      });
+    } else {
+      // Update existing user
+      user.name = name;
+      user.headline = headline;
+      user.bio = bio;
+      user.profilePicture = profilePicture || user.profilePicture || "";
+    }
 
     await user.save();
 
     res.json(user);
   } catch (error) {
+    console.error("Complete profile error:", error);
     res.status(400).json({ message: error.message });
   }
 });

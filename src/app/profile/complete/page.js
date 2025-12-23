@@ -149,18 +149,22 @@ export default function ProfileCompletionPage() {
         },
         body: JSON.stringify({
           firebaseUid: user.uid,
+          email: user.email,
           ...formData,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to complete profile");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to complete profile");
       }
 
       // Redirect to home page after successful profile completion
       router.push("/");
     } catch (error) {
-      setError("Failed to complete profile. Please try again.");
+      setError(
+        error.message || "Failed to complete profile. Please try again."
+      );
       console.error("Profile completion error:", error);
     } finally {
       setLoading(false);
