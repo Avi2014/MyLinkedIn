@@ -12,8 +12,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://my-linkedin-platform.vercel.app", // Add your Vercel URL here later
-      /\.vercel\.app$/, // Allow all Vercel preview deployments
+      "https://my-linkedin-platform.vercel.app",
+      /\.vercel\.app$/,
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -168,25 +168,25 @@ app.use("*", (req, res) => {
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received. Shutting down gracefully...");
   try {
-  await mongoose.connection.close();
-  console.log("MongoDB connection closed.");
-  process.exit(0);
-} catch (error) {
-  console.error("Error closing MongoDB connection:", error);
-  process.exit(1);
-}
+    await mongoose.connection.close();
+    console.log("MongoDB connection closed.");
+    process.exit(0);
+  } catch (error) {
+    console.error("Error closing MongoDB connection:", error);
+    process.exit(1);
+  }
 });
 
 process.on("SIGINT", async () => {
   console.log("SIGINT received. Shutting down gracefully...");
   try {
-  await mongoose.connection.close();
-  console.log("MongoDB connection closed.");
-  process.exit(0);
-} catch (error) {
-  console.error("Error closing MongoDB connection:", error);
-  process.exit(1);
-}
+    await mongoose.connection.close();
+    console.log("MongoDB connection closed.");
+    process.exit(0);
+  } catch (error) {
+    console.error("Error closing MongoDB connection:", error);
+    process.exit(1);
+  }
 });
 
 // Connect to database
