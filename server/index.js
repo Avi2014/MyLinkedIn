@@ -12,7 +12,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://my-linkedin-platform.vercel.app",
+      "https://my-linked-in-tau.vercel.app/",
       /\.vercel\.app$/,
     ],
     credentials: true,
