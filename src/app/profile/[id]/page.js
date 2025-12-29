@@ -18,6 +18,9 @@ import {
   User,
   Camera,
   Upload,
+  UserPlus,
+  UserMinus,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -28,6 +31,12 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [showConnections, setShowConnections] = useState(false);
+  const [connectionTab, setConnectionTab] = useState("followers");
   const [editData, setEditData] = useState({
     name: "",
     headline: "",
@@ -58,10 +67,55 @@ export default function ProfilePage() {
       }
     };
 
+    const fetchConnections = async () => {
+      try {
+        const [followersRes, followingRes] = await Promise.all([
+          fetch(`/api/users/${params.id}/followers`),
+          fetch(`/api/users/${params.id}/following`),
+        ]);
+
+        if (followersRes.ok) {
+          const followersData = await followersRes.json();
+          setFollowers(followersData);
+        }
+
+        if (followingRes.ok) {
+          const followingData = await followingRes.json();
+          setFollowing(followingData);
+        }
+      } catch (error) {
+        console.error("Error fetching connections:", error);
+      }
+    };
+
+    const checkFollowStatus = async () => {
+      if (!user || isOwnProfile) return;
+
+      try {
+        const targetUser = await fetch(`/api/users/${params.id}`).then((r) =>
+          r.json()
+        );
+        const currentUser = await fetch(`/api/users/${user.uid}`).then((r) =>
+          r.json()
+        );
+
+        if (targetUser._id && currentUser.following) {
+          const isFollowingUser = currentUser.following.some(
+            (id) => id === targetUser._id
+          );
+          setIsFollowing(isFollowingUser);
+        }
+      } catch (error) {
+        console.error("Error checking follow status:", error);
+      }
+    };
+
     if (params.id) {
       fetchProfile();
+      fetchConnections();
+      checkFollowStatus();
     }
-  }, [params.id]);
+  }, [params.id, user, isOwnProfile]);
 
   const handleEdit = () => {
     setEditing(true);
@@ -151,6 +205,49 @@ export default function ProfilePage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleFollow = async () => {
+    if (!user) return;
+
+    setFollowLoading(true);
+    try {
+      const endpoint = isFollowing
+        ? `/api/users/${params.id}/unfollow`
+        : `/api/users/${params.id}/follow`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ followerUid: user.uid }),
+      });
+
+      if (response.ok) {
+        setIsFollowing(!isFollowing);
+
+        // Refresh connections
+        const [followersRes, followingRes] = await Promise.all([
+          fetch(`/api/users/${params.id}/followers`),
+          fetch(`/api/users/${params.id}/following`),
+        ]);
+
+        if (followersRes.ok) {
+          const followersData = await followersRes.json();
+          setFollowers(followersData);
+        }
+
+        if (followingRes.ok) {
+          const followingData = await followingRes.json();
+          setFollowing(followingData);
+        }
+      }
+    } catch (error) {
+      console.error("Error following/unfollowing:", error);
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   if (loading) {
@@ -324,8 +421,26 @@ export default function ProfilePage() {
                       )
                     ) : (
                       <>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                          Connect
+                        <Button
+                          onClick={handleFollow}
+                          disabled={followLoading}
+                          className={
+                            isFollowing
+                              ? "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                              : "bg-blue-600 hover:bg-blue-700 text-white"
+                          }
+                        >
+                          {isFollowing ? (
+                            <>
+                              <UserMinus className="h-4 w-4 mr-2" />
+                              Following
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Follow
+                            </>
+                          )}
                         </Button>
                         <Button variant="outline" className="border-gray-300">
                           Message
@@ -333,6 +448,30 @@ export default function ProfilePage() {
                       </>
                     )}
                   </div>
+                </div>
+
+                {/* Connections Count */}
+                <div className="flex items-center gap-4 mt-4 text-sm">
+                  <button
+                    onClick={() => {
+                      setShowConnections(true);
+                      setConnectionTab("followers");
+                    }}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    <span className="font-semibold">{followers.length}</span>{" "}
+                    <span className="text-gray-600">Followers</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowConnections(true);
+                      setConnectionTab("following");
+                    }}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    <span className="font-semibold">{following.length}</span>{" "}
+                    <span className="text-gray-600">Following</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -370,6 +509,156 @@ export default function ProfilePage() {
             )}
           </div>
         </Card>
+
+        {/* Connections Section */}
+        {showConnections && (
+          <Card className="mb-6">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Connections
+                </h2>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConnections(false)}
+                  className="text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 mb-4">
+                <button
+                  onClick={() => setConnectionTab("followers")}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    connectionTab === "followers"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Followers ({followers.length})
+                </button>
+                <button
+                  onClick={() => setConnectionTab("following")}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    connectionTab === "following"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Following ({following.length})
+                </button>
+              </div>
+
+              {/* User List */}
+              <div className="space-y-3">
+                {connectionTab === "followers" ? (
+                  followers.length > 0 ? (
+                    followers.map((follower) => (
+                      <div
+                        key={follower.firebaseUid}
+                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-center space-x-3">
+                          {follower.profilePicture ? (
+                            <Image
+                              src={follower.profilePicture}
+                              alt={follower.name}
+                              width={48}
+                              height={48}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                              {getInitials(follower.name)}
+                            </div>
+                          )}
+                          <div>
+                            <a
+                              href={`/profile/${follower.firebaseUid}`}
+                              className="font-semibold text-gray-900 hover:text-blue-600"
+                            >
+                              {follower.name}
+                            </a>
+                            {follower.headline && (
+                              <p className="text-sm text-gray-600">
+                                {follower.headline}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            window.location.href = `/profile/${follower.firebaseUid}`;
+                          }}
+                        >
+                          View Profile
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">
+                      No followers yet
+                    </p>
+                  )
+                ) : following.length > 0 ? (
+                  following.map((followingUser) => (
+                    <div
+                      key={followingUser.firebaseUid}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {followingUser.profilePicture ? (
+                          <Image
+                            src={followingUser.profilePicture}
+                            alt={followingUser.name}
+                            width={48}
+                            height={48}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                            {getInitials(followingUser.name)}
+                          </div>
+                        )}
+                        <div>
+                          <a
+                            href={`/profile/${followingUser.firebaseUid}`}
+                            className="font-semibold text-gray-900 hover:text-blue-600"
+                          >
+                            {followingUser.name}
+                          </a>
+                          {followingUser.headline && (
+                            <p className="text-sm text-gray-600">
+                              {followingUser.headline}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.location.href = `/profile/${followingUser.firebaseUid}`;
+                        }}
+                      >
+                        View Profile
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-8">
+                    Not following anyone yet
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Activity/Posts Section */}
         <Card>
